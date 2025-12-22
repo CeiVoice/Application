@@ -19,6 +19,13 @@ CeiVoice/
     ├── server.ts                   
 ```
 
+### 🔗 Repository Links
+
+- **[ApiGateway](https://github.com/CeiVoice/Gateway)** - Nginx API Gateway
+- **[IdentityServer](https://github.com/CeiVoice/IdentityServer)** - Authentication & Authorization Service  
+- **[EmailService](https://github.com/CeiVoice/EmailService)** - Email Notification Service
+
+
 ## 🏗️ Architecture
 
 This is a microservices-based architecture with:
