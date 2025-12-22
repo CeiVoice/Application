@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: ceivoice-rabbitmq
+    ports:
+      - "5672:5672"      # AMQP port
+      - "15672:15672"    # Management UI
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-admin}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS:-admin}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    restart: unless-stopped
+    networks:
+      - ceivoice-network
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  identityserver:
+    build: ./IdentityServer
+    container_name: ceivoice-identityserver
+    ports:
+      - "8000:8000"
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-tonkla}
+      - JWT_SECRET_SERVICE=${JWT_SECRET_SERVICE:-fawfwa}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - NGINX_SECRET_KEY=${NGINX_SECRET_KEY:-your-super-secret-key-12345}
+      - PORT=8000
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-admin}:${RABBITMQ_PASS:-admin}@rabbitmq:5672
+    env_file:
+      - ./IdentityServer/.env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ceivoice-network
+
+  emailservice:
+    build: ./EmailService
+    container_name: ceivoice-emailservice
+    ports:
+      - "5050:5050"
+    environment:
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL:-no-reply@ceivoice.dev}
+      - PORT=5050
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-admin}:${RABBITMQ_PASS:-admin}@rabbitmq:5672
+    env_file:
+      - ./EmailService/.env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ceivoice-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: ceivoice-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - NGINX_SECRET_KEY=${NGINX_SECRET_KEY:-dqZ4&dD!|+tBBn@B>CspQZ)%g?!X,/}
+    volumes:
+      - ./ApiGateway/nginx.conf:/etc/nginx/templates/default.conf.template:ro
+      - nginx-data:/var/cache/nginx
+    depends_on:
+      - identityserver
+      - emailservice
+    restart: unless-stopped
+    networks:
+      - ceivoice-network
+
+networks:
+  ceivoice-network:
+    driver: bridge
+
+volumes:
+  rabbitmq-data:
+  nginx-data:
