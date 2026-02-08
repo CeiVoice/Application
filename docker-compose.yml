@@ -28,7 +28,6 @@ services:
       - "8000:8000"
     environment:
       - JWT_SECRET=${JWT_SECRET:-tonkla}
-      - JWT_SECRET_SERVICE=${JWT_SECRET_SERVICE:-fawfwa}
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_KEY}
       - NGINX_SECRET_KEY=${NGINX_SECRET_KEY:-your-super-secret-key-12345}
@@ -47,7 +46,7 @@ services:
     build: ./EmailService
     container_name: ceivoice-emailservice
     ports:
-      - "5050:5050"
+      - "5555:5050"
     environment:
       - RESEND_API_KEY=${RESEND_API_KEY}
       - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL:-no-reply@ceivoice.dev}
@@ -55,6 +54,25 @@ services:
       - RABBITMQ_URL=amqp://${RABBITMQ_USER:-admin}:${RABBITMQ_PASS:-admin}@rabbitmq:5672
     env_file:
       - ./EmailService/.env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ceivoice-network
+
+  organizationservice:
+    build: ./OrganizationService
+    container_name: ceivoice-organizationservice
+    ports:
+      - "8001:8001"
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - PORT=8001
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-admin}:${RABBITMQ_PASS:-admin}@rabbitmq:5672
+    env_file:
+      - ./OrganizationService/.env
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -76,6 +94,7 @@ services:
     depends_on:
       - identityserver
       - emailservice
+      - organizationservice
     restart: unless-stopped
     networks:
       - ceivoice-network
