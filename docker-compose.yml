@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   rabbitmq:
     image: rabbitmq:3-management-alpine
@@ -80,6 +78,34 @@ services:
     networks:
       - ceivoice-network
 
+  ticketservice:
+    build: ./TicketService
+    container_name: ceivoice-ticketservice
+    ports:
+      - "8002:8002"
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-tonkla}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - NGINX_SECRET_KEY=${NGINX_SECRET_KEY:-your-super-secret-key-12345}
+      - PORT=8002
+    env_file:
+      - ./TicketService/.env
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ceivoice-network
+
+  frontend:
+    build: ./frontend
+    container_name: ceivoice-frontend
+    restart: unless-stopped
+    networks:
+      - ceivoice-network
+
   nginx:
     image: nginx:alpine
     container_name: ceivoice-nginx
@@ -95,6 +121,8 @@ services:
       - identityserver
       - emailservice
       - organizationservice
+      - ticketservice
+      - frontend
     restart: unless-stopped
     networks:
       - ceivoice-network
